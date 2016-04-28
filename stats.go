@@ -6,8 +6,11 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/codegangsta/negroni"
 )
 
+// Stats //
 type Stats struct {
 	mu                  sync.RWMutex
 	Uptime              time.Time
@@ -17,6 +20,7 @@ type Stats struct {
 	TotalResponseTime   time.Time
 }
 
+// New //
 func New() *Stats {
 	stats := &Stats{
 		Uptime:              time.Now(),
@@ -37,13 +41,14 @@ func New() *Stats {
 	return stats
 }
 
+// ResetResponseCounts //
 func (mw *Stats) ResetResponseCounts() {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
 	mw.ResponseCounts = map[string]int{}
 }
 
-// MiddlewareFunc makes Stats implement the Middleware interface.
+// Handler //
 func (mw *Stats) Handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		beginning, recorder := mw.Begin(w)
@@ -63,7 +68,8 @@ func (mw *Stats) ServeHTTP(w http.ResponseWriter, r *http.Request, next http.Han
 	mw.End(beginning, recorder)
 }
 
-func (mw *Stats) Begin(w http.ResponseWriter) (time.Time, ResponseWriter) {
+// Begin //
+func (mw *Stats) Begin(w http.ResponseWriter) (time.Time, negroni.ResponseWriter) {
 	start := time.Now()
 
 	writer := NewRecorderResponseWriter(w, 200)
@@ -71,6 +77,7 @@ func (mw *Stats) Begin(w http.ResponseWriter) (time.Time, ResponseWriter) {
 	return start, writer
 }
 
+// EndWithStatus //
 func (mw *Stats) EndWithStatus(start time.Time, status int) {
 	end := time.Now()
 
@@ -87,11 +94,13 @@ func (mw *Stats) EndWithStatus(start time.Time, status int) {
 	mw.TotalResponseTime = mw.TotalResponseTime.Add(responseTime)
 }
 
-func (mw *Stats) End(start time.Time, recorder ResponseWriter) {
+// End //
+func (mw *Stats) End(start time.Time, recorder negroni.ResponseWriter) {
 	mw.EndWithStatus(start, recorder.Status())
 }
 
-type data struct {
+// Data //
+type Data struct {
 	Pid                    int            `json:"pid"`
 	UpTime                 string         `json:"uptime"`
 	UpTimeSec              float64        `json:"uptime_sec"`
@@ -107,7 +116,8 @@ type data struct {
 	AverageResponseTimeSec float64        `json:"average_response_time_sec"`
 }
 
-func (mw *Stats) Data() *data {
+// Data //
+func (mw *Stats) Data() *Data {
 
 	mw.mu.RLock()
 
@@ -133,7 +143,7 @@ func (mw *Stats) Data() *data {
 		averageResponseTime = time.Duration(avgNs)
 	}
 
-	r := &data{
+	r := &Data{
 		Pid:                    mw.Pid,
 		UpTime:                 uptime.String(),
 		UpTimeSec:              uptime.Seconds(),

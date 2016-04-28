@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+
+	"github.com/codegangsta/negroni"
 )
 
+// ResponseWriter //
 type ResponseWriter interface {
 	http.ResponseWriter
 	http.Flusher
@@ -21,7 +24,7 @@ type ResponseWriter interface {
 	Before(func(ResponseWriter))
 }
 
-type beforeFunc func(ResponseWriter)
+type beforeFunc func(negroni.ResponseWriter)
 
 type recorderResponseWriter struct {
 	http.ResponseWriter
@@ -30,7 +33,8 @@ type recorderResponseWriter struct {
 	beforeFuncs []beforeFunc
 }
 
-func NewRecorderResponseWriter(w http.ResponseWriter, statusCode int) ResponseWriter {
+// NewRecorderResponseWriter //
+func NewRecorderResponseWriter(w http.ResponseWriter, statusCode int) negroni.ResponseWriter {
 	return &recorderResponseWriter{w, statusCode, 0, nil}
 }
 
@@ -85,6 +89,6 @@ func (r *recorderResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return hijacker.Hijack()
 }
 
-func (r *recorderResponseWriter) Before(before func(ResponseWriter)) {
+func (r *recorderResponseWriter) Before(before func(negroni.ResponseWriter)) {
 	r.beforeFuncs = append(r.beforeFuncs, before)
 }
